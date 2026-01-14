@@ -6,7 +6,7 @@
 
 > A research-grade eye-tracking system integrating real-time gaze detection with comprehensive multi-domain signal processing for biomedical and behavioral analysis.
 
-![System Demo](docs/images/demo_header.jpg)
+![System Demo](images/demo_header.jpg)
 *Real-time eye tracking with multi-domain signal processing visualization*
 
 ---
