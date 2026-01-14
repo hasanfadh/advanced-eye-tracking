@@ -1,0 +1,347 @@
+{
+  "time_domain": {
+    "horizontal": {
+      "mean": -0.05994230222553039,
+      "std": 0.0810465318214294,
+      "variance": 0.006568540320281968,
+      "min": -0.25228387268727775,
+      "max": 0.21403387100101634,
+      "range": 0.4663177436882941,
+      "median": -0.04907751892054535,
+      "skewness": 0.303900474011708,
+      "kurtosis": 1.128777056209879,
+      "rms": 0.10080486057913474,
+      "peak_amplitude": 0.25228387268727775,
+      "q25": -0.09156604244774535,
+      "q75": -0.02818180017118488,
+      "iqr": 0.06338424227656048,
+      "zero_crossings": 42,
+      "num_peaks": 17,
+      "mean_velocity": 0.6170785161252712,
+      "max_velocity": 13.577579788696607,
+      "mean_acceleration": 1.021496976138512,
+      "max_acceleration": 14.252467568677638
+    },
+    "vertical": {
+      "mean": -0.16696748848332027,
+      "std": 0.13142776311531812,
+      "variance": 0.017273256917496174,
+      "min": -0.8366318213545686,
+      "max": 0.9044983898862161,
+      "range": 1.7411302112407847,
+      "median": -0.16841138796150415,
+      "skewness": 0.8563840521447942,
+      "kurtosis": 8.808723679807976,
+      "rms": 0.21248858587680391,
+      "peak_amplitude": 0.9044983898862161,
+      "q25": -0.2296684492358881,
+      "q75": -0.11160078233728979,
+      "iqr": 0.11806766689859832,
+      "zero_crossings": 36,
+      "num_peaks": 52,
+      "mean_velocity": 1.72227492794258,
+      "max_velocity": 54.512613946439714,
+      "mean_acceleration": 2.7806107732520506,
+      "max_acceleration": 77.8856268897865
+    }
+  },
+  "fixations": {
+    "count": 70,
+    "avg_duration_ms": 181.90476190476193,
+    "total_duration_ms": 12733.333333333334,
+    "fixations": [
+      {
+        "start_frame": 61,
+        "end_frame": 65,
+        "duration_ms": 100.0,
+        "position_h": -0.0674328425958538,
+        "position_v": -0.1977751609073855
+      },
+      {
+        "start_frame": 86,
+        "end_frame": 92,
+        "duration_ms": 166.66666666666666,
+        "position_h": -0.04744845084489826,
+        "position_v": -0.16560911797722097
+      },
+      {
+        "start_frame": 92,
+        "end_frame": 97,
+        "duration_ms": 133.33333333333334,
+        "position_h": -0.08378632465194262,
+        "position_v": -0.14359468062653935
+      },
+      {
+        "start_frame": 133,
+        "end_frame": 137,
+        "duration_ms": 100.0,
+        "position_h": -0.020528359781763917,
+        "position_v": -0.21129283266832882
+      },
+      {
+        "start_frame": 151,
+        "end_frame": 161,
+        "duration_ms": 300.0,
+        "position_h": -0.20764380358740978,
+        "position_v": -0.10721508074173564
+      },
+      {
+        "start_frame": 161,
+        "end_frame": 169,
+        "duration_ms": 233.33333333333334,
+        "position_h": -0.18699715078848544,
+        "position_v": -0.16189231578164962
+      },
+      {
+        "start_frame": 169,
+        "end_frame": 173,
+        "duration_ms": 100.0,
+        "position_h": -0.12599807022889417,
+        "position_v": -0.18932779697360028
+      },
+      {
+        "start_frame": 181,
+        "end_frame": 186,
+        "duration_ms": 133.33333333333334,
+        "position_h": 0.16477982070083172,
+        "position_v": -0.0034579751494457772
+      },
+      {
+        "start_frame": 194,
+        "end_frame": 199,
+        "duration_ms": 133.33333333333334,
+        "position_h": -0.17763533698689712,
+        "position_v": -0.17923433308809875
+      },
+      {
+        "start_frame": 199,
+        "end_frame": 206,
+        "duration_ms": 200.0,
+        "position_h": -0.1767405768858999,
+        "position_v": -0.1566967802890527
+      }
+    ]
+  },
+  "saccades": {
+    "count": 189,
+    "avg_amplitude": 2.9981774786819684,
+    "avg_peak_velocity": 120.71225368700003,
+    "saccades": [
+      {
+        "start_frame": 0,
+        "end_frame": 12,
+        "duration_ms": 366.66666666666663,
+        "amplitude": 2.4766663321925138,
+        "amplitude_norm": 0.06191665830481284,
+        "peak_velocity": 347.4578004963118
+      },
+      {
+        "start_frame": 12,
+        "end_frame": 17,
+        "duration_ms": 133.33333333333334,
+        "amplitude": 14.507584568246095,
+        "amplitude_norm": 0.36268961420615237,
+        "peak_velocity": 520.8707604790567
+      },
+      {
+        "start_frame": 18,
+        "end_frame": 20,
+        "duration_ms": 33.333333333333336,
+        "amplitude": 4.273509693541415,
+        "amplitude_norm": 0.10683774233853538,
+        "peak_velocity": 137.59446680916417
+      },
+      {
+        "start_frame": 20,
+        "end_frame": 24,
+        "duration_ms": 100.0,
+        "amplitude": 0.9450150274587048,
+        "amplitude_norm": 0.02362537568646762,
+        "peak_velocity": 79.61642853702953
+      },
+      {
+        "start_frame": 24,
+        "end_frame": 27,
+        "duration_ms": 66.66666666666667,
+        "amplitude": 12.385754633554637,
+        "amplitude_norm": 0.30964386583886594,
+        "peak_velocity": 335.1919110297797
+      },
+      {
+        "start_frame": 27,
+        "end_frame": 36,
+        "duration_ms": 266.6666666666667,
+        "amplitude": 8.832609542756233,
+        "amplitude_norm": 0.2208152385689058,
+        "peak_velocity": 494.0945027900672
+      },
+      {
+        "start_frame": 36,
+        "end_frame": 39,
+        "duration_ms": 66.66666666666667,
+        "amplitude": 7.078436036193192,
+        "amplitude_norm": 0.1769609009048298,
+        "peak_velocity": 104.36392558168097
+      },
+      {
+        "start_frame": 39,
+        "end_frame": 42,
+        "duration_ms": 66.66666666666667,
+        "amplitude": 8.409562743828523,
+        "amplitude_norm": 0.21023906859571306,
+        "peak_velocity": 283.6600396480282
+      },
+      {
+        "start_frame": 42,
+        "end_frame": 54,
+        "duration_ms": 366.66666666666663,
+        "amplitude": 2.5505120048828256,
+        "amplitude_norm": 0.06376280012207064,
+        "peak_velocity": 687.8744016587702
+      },
+      {
+        "start_frame": 54,
+        "end_frame": 62,
+        "duration_ms": 233.33333333333334,
+        "amplitude": 3.093581672789489,
+        "amplitude_norm": 0.07733954181973722,
+        "peak_velocity": 265.0901667207565
+      }
+    ]
+  },
+  "frequency_domain": {
+    "horizontal": {
+      "dominant_frequency": 0.7374631268436578,
+      "frequency_bands": {
+        "very_low": {
+          "absolute_power": 0.0012405000178891353,
+          "relative_power": 31.527157067749872,
+          "frequency_range": [
+            0,
+            0.5
+          ]
+        },
+        "low": {
+          "absolute_power": 0.0014875257765043638,
+          "relative_power": 37.805286676240044,
+          "frequency_range": [
+            0.5,
+            2
+          ]
+        },
+        "medium": {
+          "absolute_power": 0.0003452509546249331,
+          "relative_power": 8.774511017559398,
+          "frequency_range": [
+            2,
+            5
+          ]
+        },
+        "high": {
+          "absolute_power": 0.0002869748668509313,
+          "relative_power": 7.293431335133202,
+          "frequency_range": [
+            5,
+            15.0
+          ]
+        }
+      },
+      "spectral_entropy": 0.662471315992954,
+      "spectral_centroid": 1.418963057130221,
+      "spectral_rolloff": 2.1259842519685037,
+      "total_power": 0.003934703072729898
+    },
+    "vertical": {
+      "dominant_frequency": 0.5014749262536873,
+      "frequency_bands": {
+        "very_low": {
+          "absolute_power": 0.005092533402549343,
+          "relative_power": 40.46807593697723,
+          "frequency_range": [
+            0,
+            0.5
+          ]
+        },
+        "low": {
+          "absolute_power": 0.001809078509120087,
+          "relative_power": 14.375934470331808,
+          "frequency_range": [
+            0.5,
+            2
+          ]
+        },
+        "medium": {
+          "absolute_power": 0.0020640523659533547,
+          "relative_power": 16.402097204013096,
+          "frequency_range": [
+            2,
+            5
+          ]
+        },
+        "high": {
+          "absolute_power": 0.0027778419452883633,
+          "relative_power": 22.074262434209103,
+          "frequency_range": [
+            5,
+            15.0
+          ]
+        }
+      },
+      "spectral_entropy": 0.7747498597853563,
+      "spectral_centroid": 2.8631875841880956,
+      "spectral_rolloff": 6.732283464566929,
+      "total_power": 0.012584075928097438
+    }
+  },
+  "nonlinear": {
+    "horizontal": {
+      "sample_entropy": 0.4278404122788642,
+      "approximate_entropy": 0.6409426492149786,
+      "fractal_dimension": 1.0,
+      "lyapunov_exponent": -6.99387403786099e-05,
+      "dfa_exponent": 1.2305505998120478,
+      "rqa": {
+        "recurrence_rate": 0.4348600826268093,
+        "determinism": 0.9566668371237808,
+        "avg_diagonal_length": 9.049593034260837,
+        "max_diagonal_length": 1017.0
+      }
+    },
+    "vertical": {
+      "sample_entropy": 0.7553322708334752,
+      "approximate_entropy": 0.9242645430505778,
+      "fractal_dimension": 1.0,
+      "lyapunov_exponent": -3.957096255690485e-05,
+      "dfa_exponent": 1.163212661927718,
+      "rqa": {
+        "recurrence_rate": 0.7486543896338451,
+        "determinism": 0.9734994995641365,
+        "avg_diagonal_length": 14.734553060067633,
+        "max_diagonal_length": 1017.0
+      }
+    }
+  },
+  "quality": {
+    "missing_data": {
+      "total_frames": 1017,
+      "frames_no_face": 0,
+      "missing_face_percent": 0.0,
+      "frames_nan_h": 0,
+      "frames_nan_v": 0,
+      "data_completeness": 100.0
+    },
+    "snr_horizontal": 12.289586058087414,
+    "snr_vertical": 9.74072234086404,
+    "tracking_stability": 0.9464604998829026,
+    "sampling": {
+      "mean_interval": 0.06272047244094489,
+      "std_interval": 0.033135913952652446,
+      "min_interval": 0.016,
+      "max_interval": 0.142,
+      "estimated_fps": 15.94375745402046,
+      "consistency_score": 0.471689024921617
+    },
+    "confidence_score": 0.8335689600500684,
+    "quality_rating": "Excellent"
+  }
+}
