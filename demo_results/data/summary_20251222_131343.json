@@ -1,0 +1,54 @@
+{
+  "total_frames": 1017,
+  "frames_with_face": 1017,
+  "detection_rate": 100.0,
+  "total_blinks": 10,
+  "gaze_distribution": {
+    "center": {
+      "count": 790,
+      "percentage": 77.67944936086529
+    },
+    "left": {
+      "count": 142,
+      "percentage": 13.962635201573253
+    },
+    "up": {
+      "count": 55,
+      "percentage": 5.408062930186824
+    },
+    "right": {
+      "count": 21,
+      "percentage": 2.0648967551622417
+    },
+    "down-left": {
+      "count": 3,
+      "percentage": 0.2949852507374631
+    },
+    "up-right": {
+      "count": 2,
+      "percentage": 0.19665683382497542
+    },
+    "up-left": {
+      "count": 2,
+      "percentage": 0.19665683382497542
+    },
+    "down": {
+      "count": 1,
+      "percentage": 0.09832841691248771
+    },
+    "down-right": {
+      "count": 1,
+      "percentage": 0.09832841691248771
+    }
+  },
+  "average_ear": {
+    "left": 0.31107866349056845,
+    "right": 0.2981895448596751
+  },
+  "gaze_ratios": {
+    "horizontal_mean": -0.05994230222553039,
+    "horizontal_std": 0.08108640711625102,
+    "vertical_mean": -0.16696748848332027,
+    "vertical_std": 0.13149242622531418
+  }
+}
