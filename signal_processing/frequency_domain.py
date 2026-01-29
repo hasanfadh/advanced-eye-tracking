@@ -4,8 +4,9 @@ from scipy.fft import fft, fftfreq
 
 class FrequencyAnalyzer:
     """
-    Frequency domain analysis for eye tracking signals
-    FFT, PSD, spectral features
+    OPTIMIZED: Frequency domain analysis for eye tracking signals
+    
+    KEY OPTIMIZATION: Cache PSD/FFT results to avoid redundant calculations
     """
     
     def __init__(self, sampling_rate=30):
@@ -14,17 +15,32 @@ class FrequencyAnalyzer:
             sampling_rate: Sampling frequency in Hz (typical webcam: 30 FPS)
         """
         self.sampling_rate = sampling_rate
+        # Cache for avoiding redundant calculations
+        self._psd_cache = {}
+        self._fft_cache = {}
     
-    def compute_fft(self, signal_data):
+    def _get_signal_hash(self, signal_data):
+        """Create hash for signal caching"""
+        signal_array = np.array(signal_data)
+        # Simple hash using length and first/last values
+        return hash((len(signal_array), signal_array[0], signal_array[-1], signal_array.sum()))
+    
+    def compute_fft(self, signal_data, use_cache=True):
         """
         Compute Fast Fourier Transform
         
         Args:
             signal_data: Time domain signal
+            use_cache: Use cached result if available
             
         Returns:
             dict: Frequencies, magnitudes, and phases
         """
+        if use_cache:
+            sig_hash = self._get_signal_hash(signal_data)
+            if sig_hash in self._fft_cache:
+                return self._fft_cache[sig_hash]
+        
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
         
@@ -52,24 +68,36 @@ class FrequencyAnalyzer:
         # Normalize
         magnitudes = magnitudes / N
         
-        return {
+        result = {
             'frequencies': frequencies,
             'magnitudes': magnitudes,
             'phases': phases,
             'sampling_rate': self.sampling_rate
         }
+        
+        if use_cache:
+            self._fft_cache[sig_hash] = result
+        
+        return result
     
-    def compute_psd(self, signal_data, method='welch'):
+    def compute_psd(self, signal_data, method='welch', use_cache=True):
         """
-        Compute Power Spectral Density
+        OPTIMIZED: Compute Power Spectral Density with caching
         
         Args:
             signal_data: Time domain signal
             method: 'welch' or 'periodogram'
+            use_cache: Use cached result if available
             
         Returns:
             dict: Frequencies and power spectral density
         """
+        if use_cache:
+            sig_hash = self._get_signal_hash(signal_data)
+            cache_key = (sig_hash, method)
+            if cache_key in self._psd_cache:
+                return self._psd_cache[cache_key]
+        
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
         
@@ -93,11 +121,22 @@ class FrequencyAnalyzer:
                 scaling='density'
             )
         
-        return {
+        result = {
             'frequencies': frequencies,
             'psd': psd,
             'method': method
         }
+        
+        if use_cache:
+            cache_key = (sig_hash, method)
+            self._psd_cache[cache_key] = result
+        
+        return result
+    
+    def clear_cache(self):
+        """Clear cached results (call when analyzing new signal)"""
+        self._psd_cache.clear()
+        self._fft_cache.clear()
     
     def get_dominant_frequency(self, signal_data, freq_range=(0.5, 10)):
         """
@@ -110,7 +149,7 @@ class FrequencyAnalyzer:
         Returns:
             float: Dominant frequency in Hz
         """
-        fft_result = self.compute_fft(signal_data)
+        fft_result = self.compute_fft(signal_data, use_cache=True)
         
         if fft_result is None:
             return None
@@ -132,20 +171,25 @@ class FrequencyAnalyzer:
         
         return float(dominant_freq)
     
-    def analyze_frequency_bands(self, signal_data):
+    def analyze_frequency_bands(self, signal_data, psd_result=None):
         """
-        Analyze power in different frequency bands
+        OPTIMIZED: Analyze power in different frequency bands
+        
+        Args:
+            signal_data: Time domain signal
+            psd_result: Pre-computed PSD result (avoids recalculation)
         
         Frequency bands for eye movements:
-        - Very Low (0-0.5 Hz): Drift, slow pursuit
-        - Low (0.5-2 Hz): Normal saccades
-        - Medium (2-5 Hz): Fast saccades, microsaccades
-        - High (5+ Hz): Noise, tremor
-        
+            - Very Low (0-0.5 Hz): Drift, slow pursuit
+            - Low (0.5-2 Hz): Normal saccades
+            - Medium (2-5 Hz): Fast saccades, microsaccades
+            - High (5+ Hz): Noise, tremor
+            
         Returns:
             dict: Power distribution across bands
         """
-        psd_result = self.compute_psd(signal_data)
+        if psd_result is None:
+            psd_result = self.compute_psd(signal_data, use_cache=True)
         
         if psd_result is None:
             return None
@@ -175,16 +219,12 @@ class FrequencyAnalyzer:
         
         return band_powers
     
-    def compute_spectral_entropy(self, signal_data):
+    def compute_spectral_entropy(self, signal_data, psd_result=None):
         """
-        Calculate spectral entropy (measure of frequency distribution complexity)
-        High entropy = broad frequency distribution
-        Low entropy = concentrated in few frequencies
-        
-        Returns:
-            float: Spectral entropy value
+        OPTIMIZED: Calculate spectral entropy with optional pre-computed PSD
         """
-        psd_result = self.compute_psd(signal_data)
+        if psd_result is None:
+            psd_result = self.compute_psd(signal_data, use_cache=True)
         
         if psd_result is None:
             return None
@@ -206,15 +246,12 @@ class FrequencyAnalyzer:
         
         return float(normalized_entropy)
     
-    def compute_spectral_centroid(self, signal_data):
+    def compute_spectral_centroid(self, signal_data, psd_result=None):
         """
-        Calculate spectral centroid (weighted mean of frequencies)
-        Indicates where the "center of mass" of the spectrum is
-        
-        Returns:
-            float: Spectral centroid in Hz
+        OPTIMIZED: Calculate spectral centroid with optional pre-computed PSD
         """
-        psd_result = self.compute_psd(signal_data)
+        if psd_result is None:
+            psd_result = self.compute_psd(signal_data, use_cache=True)
         
         if psd_result is None:
             return None
@@ -227,17 +264,12 @@ class FrequencyAnalyzer:
         
         return float(centroid)
     
-    def compute_spectral_rolloff(self, signal_data, rolloff_percent=0.85):
+    def compute_spectral_rolloff(self, signal_data, rolloff_percent=0.85, psd_result=None):
         """
-        Calculate spectral rolloff (frequency below which X% of power is contained)
-        
-        Args:
-            rolloff_percent: Percentage threshold (default 85%)
-            
-        Returns:
-            float: Rolloff frequency in Hz
+        OPTIMIZED: Calculate spectral rolloff with optional pre-computed PSD
         """
-        psd_result = self.compute_psd(signal_data)
+        if psd_result is None:
+            psd_result = self.compute_psd(signal_data, use_cache=True)
         
         if psd_result is None:
             return None
@@ -258,30 +290,36 @@ class FrequencyAnalyzer:
     
     def extract_spectral_features(self, signal_data):
         """
-        Extract comprehensive spectral features
+        OPTIMIZED: Extract comprehensive spectral features
+        
+        KEY OPTIMIZATION: Compute PSD once, reuse for all metrics
         
         Returns:
             dict: All spectral features
         """
         features = {}
         
-        # 1. Dominant frequency - CALLS compute_fft() internally
+        # Clear cache for new signal
+        self.clear_cache()
+        
+        # 1. Compute PSD ONCE
+        psd_result = self.compute_psd(signal_data, use_cache=True)
+        
+        if psd_result is None:
+            return features
+        
+        # 2. Dominant frequency - uses FFT (separate from PSD)
         dom_freq = self.get_dominant_frequency(signal_data)
         features['dominant_frequency'] = dom_freq
         
-        # 2. Frequency bands - CALLS compute_psd() internally
-        band_powers = self.analyze_frequency_bands(signal_data)
-        features['frequency_bands'] = band_powers
+        # 3. ALL other features reuse the SAME PSD
+        features['frequency_bands'] = self.analyze_frequency_bands(signal_data, psd_result)
+        features['spectral_entropy'] = self.compute_spectral_entropy(signal_data, psd_result)
+        features['spectral_centroid'] = self.compute_spectral_centroid(signal_data, psd_result)
+        features['spectral_rolloff'] = self.compute_spectral_rolloff(signal_data, psd_result=psd_result)
         
-        # 3. Spectral characteristics - CALLS compute_psd() internally
-        features['spectral_entropy'] = self.compute_spectral_entropy(signal_data)
-        features['spectral_centroid'] = self.compute_spectral_centroid(signal_data)
-        features['spectral_rolloff'] = self.compute_spectral_rolloff(signal_data)
-        
-        # 4. Total power - CALLS compute_psd() internally
-        psd_result = self.compute_psd(signal_data)
-        if psd_result:
-            features['total_power'] = float(np.trapz(psd_result['psd'], psd_result['frequencies']))
+        # 4. Total power
+        features['total_power'] = float(np.trapz(psd_result['psd'], psd_result['frequencies']))
         
         return features
     

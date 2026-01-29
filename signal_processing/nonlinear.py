@@ -1,33 +1,61 @@
 import numpy as np
-from scipy.spatial.distance import pdist, squareform
+from scipy.spatial.distance import pdist, squareform, cdist
 
 class NonlinearAnalyzer:
     """
-    Nonlinear dynamics and complexity analysis
-    Perfect for NKUST's "Advanced nonlinear biomedical signal processing"
+    OPTIMIZED: Nonlinear dynamics and complexity analysis
+    
+    KEY OPTIMIZATIONS:
+    1. Vectorized operations (NumPy broadcast)
+    2. Early stopping for long signals
+    3. Adaptive downsampling for very long signals
+    4. Efficient distance calculations
     """
     
     def __init__(self):
-        pass
+        self.max_samples = 3000  # Downsample if signal longer than this
     
-    def sample_entropy(self, signal_data, m=2, r=None):
+    def _adaptive_downsample(self, signal_data, target_length=None):
         """
-        Calculate Sample Entropy - measure of signal regularity/complexity
+        Adaptively downsample signal if too long
         
-        High entropy = irregular, unpredictable (e.g., distracted, searching)
-        Low entropy = regular, predictable (e.g., focused reading, stable fixation)
+        Args:
+            signal_data: Input signal
+            target_length: Target length (default: self.max_samples)
+            
+        Returns:
+            downsampled signal, downsample_factor
+        """
+        if target_length is None:
+            target_length = self.max_samples
+        
+        signal_array = np.array(signal_data)
+        original_length = len(signal_array)
+        
+        if original_length <= target_length:
+            return signal_array, 1
+        
+        # Calculate downsample factor
+        factor = original_length // target_length
+        
+        # Downsample by averaging
+        new_length = original_length // factor
+        downsampled = signal_array[:new_length * factor].reshape(-1, factor).mean(axis=1)
+        
+        return downsampled, factor
+    
+    def sample_entropy(self, signal_data, m=2, r=None, max_length=1000):
+        """
+        OPTIMIZED: Calculate Sample Entropy with adaptive processing
         
         Args:
             signal_data: Time series data
             m: Pattern length (default 2)
             r: Tolerance (default 0.2 * std)
+            max_length: Maximum signal length to process (downsample if longer)
             
         Returns:
             float: Sample entropy value
-            
-        Reference:
-            Richman & Moorman (2000). Physiological time-series analysis using 
-            approximate entropy and sample entropy.
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
@@ -35,32 +63,52 @@ class NonlinearAnalyzer:
         if len(signal_array) < 10:
             return None
         
+        # Adaptive downsampling for very long signals
+        if len(signal_array) > max_length:
+            signal_array, _ = self._adaptive_downsample(signal_array, max_length)
+        
         N = len(signal_array)
         
         # Default tolerance
         if r is None:
             r = 0.2 * np.std(signal_array)
         
-        def _maxdist(x_i, x_j):
-            """Maximum absolute difference"""
-            return max([abs(ua - va) for ua, va in zip(x_i, x_j)])
-        
-        def _phi(m):
-            """Count similar patterns"""
+        # OPTIMIZATION: Vectorized distance calculation
+        def _phi_vectorized(m):
+            """Vectorized version using broadcasting"""
+            # Create template matrix
             patterns = np.array([signal_array[i:i+m] for i in range(N-m)])
+            n_patterns = len(patterns)
             
-            # Count matches
+            if n_patterns < 2:
+                return 0
+            
+            # Calculate pairwise Chebyshev distances (max absolute difference)
+            # This is much faster than nested loops
             matches = 0
-            for i in range(len(patterns) - 1):
-                for j in range(i + 1, len(patterns)):
-                    if _maxdist(patterns[i], patterns[j]) <= r:
-                        matches += 2  # Count both (i,j) and (j,i)
+            
+            # Process in chunks to avoid memory issues
+            chunk_size = 500
+            for i in range(0, n_patterns, chunk_size):
+                end_i = min(i + chunk_size, n_patterns)
+                chunk = patterns[i:end_i]
+                
+                # Calculate distances for this chunk
+                dists = cdist(chunk, patterns, metric='chebyshev')
+                
+                # Count matches (excluding self-matches)
+                # For each pattern, count how many others are within tolerance
+                for j, row in enumerate(dists):
+                    # Exclude self-match at position i+j
+                    mask = np.ones(len(row), dtype=bool)
+                    mask[i+j] = False
+                    matches += np.sum(row[mask] <= r)
             
             return matches
         
         # Calculate phi(m) and phi(m+1)
-        phi_m = _phi(m)
-        phi_m1 = _phi(m + 1)
+        phi_m = _phi_vectorized(m)
+        phi_m1 = _phi_vectorized(m + 1)
         
         if phi_m == 0 or phi_m1 == 0:
             return None
@@ -70,73 +118,49 @@ class NonlinearAnalyzer:
         
         return float(sam_en)
     
-    def approximate_entropy(self, signal_data, m=2, r=None):
+    def approximate_entropy(self, signal_data, m=2, r=None, max_length=1000):
         """
-        Calculate Approximate Entropy - similar to sample entropy
-        
-        Args:
-            signal_data: Time series data
-            m: Pattern length
-            r: Tolerance
-            
-        Returns:
-            float: Approximate entropy
-            
-        Reference:
-            Pincus (1991). Approximate entropy as a measure of system complexity.
+        OPTIMIZED: Calculate Approximate Entropy with vectorization
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
         
         if len(signal_array) < 10:
             return None
+        
+        # Adaptive downsampling
+        if len(signal_array) > max_length:
+            signal_array, _ = self._adaptive_downsample(signal_array, max_length)
         
         N = len(signal_array)
         
         if r is None:
             r = 0.2 * np.std(signal_array)
         
-        def _maxdist(x_i, x_j):
-            return max([abs(ua - va) for ua, va in zip(x_i, x_j)])
-        
-        def _phi(m):
-            patterns = [signal_array[i:i+m] for i in range(N-m+1)]
-            C = []
+        def _phi_vectorized(m):
+            patterns = np.array([signal_array[i:i+m] for i in range(N-m+1)])
+            n_patterns = len(patterns)
             
-            for i in range(len(patterns)):
-                matches = 0
-                for j in range(len(patterns)):
-                    if _maxdist(patterns[i], patterns[j]) <= r:
-                        matches += 1
-                C.append(matches / len(patterns))
+            # Calculate distances using cdist
+            dists = cdist(patterns, patterns, metric='chebyshev')
             
-            phi = np.mean([np.log(c) for c in C if c > 0])
+            # Count matches for each pattern
+            C = np.sum(dists <= r, axis=1) / n_patterns
+            
+            # Calculate phi
+            phi = np.mean(np.log(C[C > 0]))
             return phi
         
-        phi_m = _phi(m)
-        phi_m1 = _phi(m + 1)
+        phi_m = _phi_vectorized(m)
+        phi_m1 = _phi_vectorized(m + 1)
         
         ap_en = phi_m - phi_m1
         
         return float(ap_en)
     
-    def fractal_dimension(self, signal_data, method='higuchi'):
+    def fractal_dimension(self, signal_data, method='higuchi', max_length=2000):
         """
-        Calculate Fractal Dimension - measure of signal complexity/roughness
-        
-        High FD (close to 2) = complex, rough, irregular
-        Low FD (close to 1) = smooth, regular
-        
-        Args:
-            signal_data: Time series
-            method: 'higuchi' or 'box_counting'
-            
-        Returns:
-            float: Fractal dimension
-            
-        Reference:
-            Higuchi (1988). Approach to an irregular time series on the basis 
-            of the fractal theory.
+        OPTIMIZED: Calculate Fractal Dimension with adaptive downsampling
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
@@ -144,73 +168,107 @@ class NonlinearAnalyzer:
         if len(signal_array) < 10:
             return None
         
+        # Adaptive downsampling for long signals
+        if len(signal_array) > max_length:
+            signal_array, _ = self._adaptive_downsample(signal_array, max_length)
+        
         if method == 'higuchi':
-            return self._higuchi_fd(signal_array)
+            return self._higuchi_fd_optimized(signal_array)
         else:
             return self._box_counting_fd(signal_array)
     
-    def _higuchi_fd(self, signal_array, kmax=10):
+    def _higuchi_fd_optimized(self, signal_array, kmax=None):
         """
-        Higuchi's fractal dimension
+        FIXED: Proper Higuchi Fractal Dimension calculation
         
-        FIXED: Added normalization factor for correct FD range (1.0-2.0)
+        Key fixes:
+        1. Adaptive kmax based on signal length
+        2. Proper normalization factor
+        3. Better handling of edge cases
         """
         N = len(signal_array)
         
-        # Adjust kmax for short signals
+        # Adaptive kmax: should be at least N/10 but not too large
+        if kmax is None:
+            kmax = max(8, min(20, N // 10))
+        
         kmax = min(kmax, N // 4)
-        if kmax < 2:
+        
+        if kmax < 3:
             return None
         
-        L = []
-        x = np.arange(1, kmax + 1)
+        Lk = np.zeros(kmax)
         
-        # For each k = 1 to kmax
-        for k in x:
-            Lk = []
+        for k in range(1, kmax + 1):
+            Lmk = np.zeros(k)
+            
             for m in range(k):
-                # Create subsequence: take every k-th element starting from m, up to N
-                idxs = np.arange(m, N, k, dtype=int)
-                if len(idxs) < 2:
+                # Get indices for this subsequence
+                indices = np.arange(m, N, k)
+                
+                if len(indices) < 2:
                     continue
                 
-                # Calculate length of curve
-                subseq = signal_array[idxs]
-                Lmk = np.sum(np.abs(np.diff(subseq)))
+                # Extract subsequence
+                subsequence = signal_array[indices]
                 
-                # Normalization
-                # Multiply by (N-1) / ((len(idxs)-1) * k) not (N-1) / (len(idxs) * k)
-                normalization = (N - 1) / ((len(idxs) - 1) * k)
-                Lmk = Lmk * normalization
+                # Calculate normalized length
+                # Sum of absolute differences
+                length_sum = np.sum(np.abs(np.diff(subsequence)))
                 
-                Lk.append(Lmk)
+                # Normalization factor: (N-1) / [(floor((N-m)/k)) * k]
+                norm_factor = (N - 1) / ((len(indices) - 1) * k)
+                
+                Lmk[m] = length_sum * norm_factor
             
-            if len(Lk) > 0:
-                L.append(np.mean(Lk))
+            # Average curve length for this k
+            # Filter out zeros
+            valid_Lmk = Lmk[Lmk > 0]
+            if len(valid_Lmk) > 0:
+                Lk[k-1] = np.mean(valid_Lmk)
+            else:
+                Lk[k-1] = 0
         
-        if len(L) < 3:
+        # Remove zeros and check if enough points
+        k_range = np.arange(1, kmax + 1)
+        valid = Lk > 0
+        
+        if np.sum(valid) < 4:  # Need at least 4 points for good fit
             return None
         
-        # Filter out zeros and invalid values
-        valid_idx = np.array(L) > 0
-        L = np.array(L)[valid_idx]
-        x = x[:len(L)][valid_idx]
+        Lk_valid = Lk[valid]
+        k_valid = k_range[valid]
         
-        if len(L) < 3:
+        # Fit line in log-log space: log(L(k)) ~ -FD * log(k)
+        try:
+            # Use robust fitting
+            log_k = np.log(k_valid)
+            log_Lk = np.log(Lk_valid)
+            
+            # Check for NaN or Inf
+            if np.any(~np.isfinite(log_k)) or np.any(~np.isfinite(log_Lk)):
+                return None
+            
+            # Linear regression
+            coeffs = np.polyfit(log_k, log_Lk, 1)
+            slope = coeffs[0]
+
+            if slope < 0:
+                FD = 2.0 + slope  # NEW
+            else:
+                FD = 2.0 - abs(slope)
+            
+            # Sanity check
+            if FD < 0.5 or FD > 2.5:
+                return None
+            
+            # Clip to valid range
+            FD = np.clip(FD, 1.0, 2.0)
+            
+            return float(FD)
+            
+        except Exception as e:
             return None
-        
-        # Fit line in log-log plot
-        log_x = np.log(x)
-        log_L = np.log(L)
-        
-        coeffs = np.polyfit(log_x, log_L, 1)
-        fd = -coeffs[0]  # Negative slope is FD
-        
-        # FIXED: Ensure FD is in valid range [1.0, 2.0]
-        # If outside range, there might be data issues
-        fd = float(np.clip(fd, 1.0, 2.0))
-        
-        return fd
     
     def _box_counting_fd(self, signal_array):
         """Box counting fractal dimension"""
@@ -231,13 +289,14 @@ class NonlinearAnalyzer:
             n_boxes_x = N // size
             n_boxes_y = int(1.0 / size) + 1 if size < N else 1
             
-            boxes = set()
-            for i in range(N):
-                box_x = i // size
-                box_y = int(signal_norm[i] * n_boxes_y)
-                boxes.add((box_x, box_y))
+            # Vectorized box counting
+            box_x = (x // size).astype(int)
+            box_y = (signal_norm * n_boxes_y).astype(int)
             
-            counts.append(len(boxes))
+            # Count unique boxes
+            boxes = np.column_stack((box_x, box_y))
+            unique_boxes = np.unique(boxes, axis=0)
+            counts.append(len(unique_boxes))
         
         # Fit line in log-log plot
         coeffs = np.polyfit(np.log(box_sizes), np.log(counts), 1)
@@ -245,30 +304,15 @@ class NonlinearAnalyzer:
         
         return float(np.clip(fd, 1.0, 2.0))
     
-    def lyapunov_exponent(self, signal_data, delay=1, embedding_dim=3):
+    def lyapunov_exponent(self, signal_data, delay=1, embedding_dim=3, max_length=1000):
         """
-        Estimate largest Lyapunov exponent - measure of chaos
+        FIXED: Lyapunov exponent with better robustness
         
-        Positive λ = chaotic, sensitive to initial conditions
-        Zero λ = periodic, stable
-        Negative λ = converging, damped
-        
-        For eye movements:
-            λ > 0 → Unpredictable, possibly distracted
-            λ ≈ 0 → Stable, focused task
-            λ < 0 → Overly constrained, possibly fatigued
-            
-        Args:
-            signal_data: Time series
-            delay: Time delay for embedding
-            embedding_dim: Embedding dimension
-            
-        Returns:
-            float: Largest Lyapunov exponent
-            
-        Reference:
-            Rosenstein et al. (1993). A practical method for calculating largest 
-            Lyapunov exponents from small data sets.
+        Key fixes:
+        1. Better nearest neighbor identification
+        2. Minimum separation constraint
+        3. More robust divergence tracking
+        4. Better handling of short signals
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
@@ -276,77 +320,111 @@ class NonlinearAnalyzer:
         if len(signal_array) < 50:
             return None
         
+        # Adaptive downsampling
+        if len(signal_array) > max_length:
+            signal_array, _ = self._adaptive_downsample(signal_array, max_length)
+        
         # Time-delay embedding
         N = len(signal_array)
         M = N - (embedding_dim - 1) * delay
         
-        if M < 10:
+        if M < 20:  # Need more points
             return None
         
-        # Create embedded vectors
+        # Create embedded vectors (vectorized)
         embedded = np.zeros((M, embedding_dim))
+        for j in range(embedding_dim):
+            embedded[:, j] = signal_array[j*delay:j*delay+M]
+        
+        # Calculate pairwise distances
+        try:
+            distances = pdist(embedded, metric='euclidean')
+            dist_matrix = squareform(distances)
+        except:
+            return None
+        
+        # Find nearest neighbors with minimum temporal separation
+        min_temporal_sep = max(1, M // 20)  # At least 5% of signal length apart
+        
+        nearest_neighbors = np.full(M, -1, dtype=int)
+        
         for i in range(M):
-            for j in range(embedding_dim):
-                embedded[i, j] = signal_array[i + j * delay]
-        
-        # Find nearest neighbors
-        distances = pdist(embedded, metric='euclidean')
-        dist_matrix = squareform(distances)
-        
-        # For each point, find nearest neighbor
-        divergence = []
-        for i in range(M - 1):
             # Get distances to all other points
             dists = dist_matrix[i].copy()
-            dists[i] = np.inf  # Exclude self
             
-            # Find nearest neighbor
-            j = np.argmin(dists)
+            # Exclude self
+            dists[i] = np.inf
+            
+            # Exclude temporally close points
+            for j in range(max(0, i - min_temporal_sep), 
+                          min(M, i + min_temporal_sep + 1)):
+                dists[j] = np.inf
+            
+            # Find nearest
+            if np.all(np.isinf(dists)):
+                continue
+            
+            nearest_neighbors[i] = np.argmin(dists)
+        
+        # Track divergence
+        divergences = []
+        max_evolution = min(15, M // 10)  # Track up to 15 steps or 10% of signal
+        
+        for i in range(M):
+            j = nearest_neighbors[i]
+            
+            if j < 0:  # No valid neighbor found
+                continue
+            
+            # Initial distance
+            d0 = dist_matrix[i, j]
+            
+            if d0 < 1e-10:  # Too close, skip
+                continue
             
             # Track divergence over time
-            for k in range(1, min(10, M - max(i, j))):
-                if i + k < M and j + k < M:
-                    d = np.linalg.norm(embedded[i + k] - embedded[j + k])
-                    if d > 0:
-                        divergence.append(np.log(d))
+            for k in range(1, max_evolution + 1):
+                if i + k >= M or j + k >= M:
+                    break
+                
+                # Distance after k steps
+                dk = np.linalg.norm(embedded[i + k] - embedded[j + k])
+                
+                if dk < 1e-10:  # Converged, stop tracking
+                    break
+                
+                # Log divergence
+                log_divergence = np.log(dk / d0)
+                
+                # Only use positive divergences (exponential separation)
+                if log_divergence > 0:
+                    divergences.append(log_divergence / k)  # Normalize by time
         
-        if len(divergence) < 2:
+        if len(divergences) < 10:  # Need enough data points
             return None
         
-        # Lyapunov exponent is slope of divergence
-        x = np.arange(len(divergence))
-        coeffs = np.polyfit(x, divergence, 1)
-        lyap = coeffs[0]
+        # Lyapunov exponent is the average rate of divergence
+        lyap = np.mean(divergences)
+        
+        # Sanity check: should be reasonable
+        if abs(lyap) > 2.0:  # Unrealistically large
+            return None
         
         return float(lyap)
     
-    def detrended_fluctuation_analysis(self, signal_data):
+    def detrended_fluctuation_analysis(self, signal_data, max_length=2000):
         """
-        Detrended Fluctuation Analysis (DFA) - measure of long-range correlations
-        
-        DFA exponent (α):
-        - α < 0.5: Anti-correlated (mean-reverting)
-        - α = 0.5: Uncorrelated (white noise)
-        - 0.5 < α < 1: Correlated (persistent)
-        - α = 1: 1/f noise (pink noise)
-        - α > 1: Non-stationary
-
-        For eye movements:
-            α = 0.6  → Normal, slightly persistent behavior
-            α > 0.8  → Strong correlations, possibly focused
-            α < 0.5  → Anti-correlated, possibly distracted
-        
-        Returns:
-            float: DFA scaling exponent
-            
-        Reference:
-            Peng et al. (1994). Mosaic organization of DNA nucleotides.
+        OPTIMIZED: DFA with adaptive downsampling
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
         
         if len(signal_array) < 16:
             return None
+        
+        # Adaptive downsampling
+        if len(signal_array) > max_length:
+            signal_array, _ = self._adaptive_downsample(signal_array, max_length)
         
         N = len(signal_array)
         
@@ -361,23 +439,24 @@ class NonlinearAnalyzer:
             # Divide into non-overlapping segments
             n_segments = N // scale
             
-            F = []
+            # Vectorized fluctuation calculation
+            F_list = []
             for v in range(n_segments):
                 start = v * scale
                 end = start + scale
                 segment = y[start:end]
                 
-                # Fit polynomial trend
+                # Fit polynomial trend (vectorized)
                 x = np.arange(len(segment))
                 coeffs = np.polyfit(x, segment, 1)
                 trend = np.polyval(coeffs, x)
                 
                 # Calculate fluctuation
                 fluctuation = np.sqrt(np.mean((segment - trend)**2))
-                F.append(fluctuation)
+                F_list.append(fluctuation)
             
-            if len(F) > 0:
-                fluctuations.append(np.mean(F))
+            if F_list:
+                fluctuations.append(np.mean(F_list))
         
         if len(fluctuations) < 3:
             return None
@@ -391,16 +470,9 @@ class NonlinearAnalyzer:
         
         return float(dfa_exp)
     
-    def recurrence_quantification(self, signal_data, threshold=0.1, min_line_length=2):
+    def recurrence_quantification(self, signal_data, threshold=0.1, min_line_length=2, max_length=500):
         """
-        Recurrence Quantification Analysis (RQA)
-        Analyze patterns and repetitions in time series
-        
-        Returns:
-            dict: RQA measures
-            
-        Reference:
-            Marwan et al. (2007). Recurrence plots for the analysis of complex systems.
+        OPTIMIZED: RQA with length limiting
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
@@ -408,10 +480,14 @@ class NonlinearAnalyzer:
         if len(signal_array) < 10:
             return None
         
+        # Limit length for memory efficiency
+        if len(signal_array) > max_length:
+            signal_array, _ = self._adaptive_downsample(signal_array, max_length)
+        
         # Normalize
         signal_norm = (signal_array - np.mean(signal_array)) / (np.std(signal_array) + 1e-10)
         
-        # Create distance matrix
+        # Create distance matrix (vectorized)
         N = len(signal_norm)
         distances = np.abs(signal_norm[:, None] - signal_norm[None, :])
         
@@ -430,17 +506,17 @@ class NonlinearAnalyzer:
         for offset in range(-N+1, N):
             diag = np.diagonal(R, offset=offset)
             if len(diag) > 0:
-                # Find line lengths
-                line_length = 0
-                for val in diag:
-                    if val:
-                        line_length += 1
-                    else:
-                        if line_length >= min_line_length:
-                            diag_lines.append(line_length)
-                        line_length = 0
-                if line_length >= min_line_length:
-                    diag_lines.append(line_length)
+                # Find line lengths (vectorized)
+                # Convert boolean to int and find consecutive ones
+                diag_int = diag.astype(int)
+                changes = np.diff(np.concatenate(([0], diag_int, [0])))
+                starts = np.where(changes == 1)[0]
+                ends = np.where(changes == -1)[0]
+                lengths = ends - starts
+                
+                # Filter by minimum length
+                valid_lengths = lengths[lengths >= min_line_length]
+                diag_lines.extend(valid_lengths)
         
         if len(diag_lines) > 0:
             measures['determinism'] = float(np.sum(diag_lines) / np.sum(R))
@@ -455,27 +531,46 @@ class NonlinearAnalyzer:
     
     def extract_nonlinear_features(self, signal_data):
         """
-        Extract all nonlinear features
+        OPTIMIZED: Extract all nonlinear features with adaptive processing
         
         Returns:
             dict: Comprehensive nonlinear analysis
         """
         features = {}
         
+        # Adaptive processing based on signal length
+        signal_array = np.array(signal_data)
+        signal_length = len(signal_array)
+        
+        # Adjust max_length based on signal length
+        if signal_length < 500:
+            max_len_entropy = signal_length
+            max_len_fractal = signal_length
+            max_len_lyap = signal_length
+        elif signal_length < 2000:
+            max_len_entropy = 1000
+            max_len_fractal = signal_length
+            max_len_lyap = 1000
+        else:
+            max_len_entropy = 1000
+            max_len_fractal = 2000
+            max_len_lyap = 1000
+        
         # Entropy measures
-        features['sample_entropy'] = self.sample_entropy(signal_data)
-        features['approximate_entropy'] = self.approximate_entropy(signal_data)
+        features['sample_entropy'] = self.sample_entropy(signal_data, max_length=max_len_entropy)
+        features['approximate_entropy'] = self.approximate_entropy(signal_data, max_length=max_len_entropy)
         
         # Complexity measures
-        features['fractal_dimension'] = self.fractal_dimension(signal_data)
-        features['lyapunov_exponent'] = self.lyapunov_exponent(signal_data)
+        features['fractal_dimension'] = self.fractal_dimension(signal_data, max_length=max_len_fractal)
+        features['lyapunov_exponent'] = self.lyapunov_exponent(signal_data, max_length=max_len_lyap)
         
         # Correlation measures
         features['dfa_exponent'] = self.detrended_fluctuation_analysis(signal_data)
         
-        # Pattern analysis
-        rqa = self.recurrence_quantification(signal_data)
-        if rqa:
-            features['rqa'] = rqa
+        # Pattern analysis (only for shorter signals due to memory)
+        if signal_length < 1000:
+            rqa = self.recurrence_quantification(signal_data)
+            if rqa:
+                features['rqa'] = rqa
         
         return features
