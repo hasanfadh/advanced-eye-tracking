@@ -48,3 +48,6 @@ data/
 *.log
 *.tmp
 temp/
+
+# Study-based Files
+KNOWLEDGE_BASE_NONLINEAR.md
