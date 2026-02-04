@@ -51,3 +51,6 @@ temp/
 
 # Study-based Files
 KNOWLEDGE_BASE_NONLINEAR.md
+
+# Local Environment Settings
+freeze_local.txt
