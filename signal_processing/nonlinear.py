@@ -204,13 +204,13 @@ class NonlinearAnalyzer:
             
             for m in range(k):
                 # Get indices for this subsequence
-                indices = np.arange(m, N, k)
+                indices = np.arange(m, N, k) # Indexing for subsequence
                 
                 if len(indices) < 2:
                     continue
                 
                 # Extract subsequence
-                subsequence = signal_array[indices]
+                subsequence = signal_array[indices] # Subsequence for this m and k
                 
                 # Calculate normalized length
                 # Sum of absolute differences
