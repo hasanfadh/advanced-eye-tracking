@@ -91,6 +91,12 @@ class FrequencyAnalyzer:
             
         Returns:
             dict: Frequencies and power spectral density
+
+        Perubahan utama:
+        - nperseg = len(signal) untuk sinyal < 256 samples (bukan // 4)
+        - Auto-fallback ke periodogram jika sinyal < 60 samples
+        - Resolusi frekuensi minimum: sampling_rate / len(signal)
+        → 30 / 90 = 0.33 Hz (bisa deteksi band 0–0.5 Hz)
         """
         if use_cache:
             sig_hash = self._get_signal_hash(signal_data)
@@ -104,16 +110,22 @@ class FrequencyAnalyzer:
         if len(signal_array) < 4:
             return None
         
-        if method == 'welch':
+        N = len(signal_array)
+
+        if method == 'welch' and N >= 60:
+            # For short signals, use nperseg = len(signal) to maximize frequency resolution
             # Welch's method: more robust, smoothed estimate
-            nperseg = min(256, len(signal_array) // 4)
+            nperseg = min(256, N)
+            noverlap = nperseg // 2
             frequencies, psd = signal.welch(
                 signal_array,
                 fs=self.sampling_rate,
                 nperseg=nperseg,
+                noverlap=noverlap,
                 scaling='density'
             )
         else:
+            # For very short signals, fallback to periodogram (less stable but works with few samples, < 60 samples)
             # Periodogram: direct FFT-based estimate
             frequencies, psd = signal.periodogram(
                 signal_array,
@@ -124,7 +136,8 @@ class FrequencyAnalyzer:
         result = {
             'frequencies': frequencies,
             'psd': psd,
-            'method': method
+            'method': method,
+            'freq_resolution': self.sampling_rate / N, # Added frequency resolution info, for debugging/analysis
         }
         
         if use_cache:

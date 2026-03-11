@@ -8,6 +8,8 @@ sys.path.append(os.path.dirname(__file__))
 from eye_tracker import EyeTracker
 from utils.data_logger import DataLogger
 from utils.visualizer import EyeTrackingVisualizer
+from window_processor import WindowProcessor
+from feature_printer import print_features
 
 def main():
     """
@@ -40,6 +42,12 @@ def main():
     tracker = EyeTracker()
     logger = DataLogger()
     visualizer = EyeTrackingVisualizer()
+    processor = WindowProcessor(
+        window_sec=3.0,
+        step_sec=1.0,
+        sampling_rate=30,
+    )
+    window_counter = 0
     
     print("\nControls:")
     print("  'q'     - Quit and save data")
@@ -69,6 +77,12 @@ def main():
                 if data['face_detected']:
                     tracker.add_to_history(data)
                     frame_count += 1
+
+                    # Real-time windowed feature extraction
+                    features = processor.update(data)
+                    if features:
+                        window_counter += 1
+                        print_features(features, window_num=window_counter)
                 
                 # Add status text
                 status = "PAUSED" if is_paused else "TRACKING"
@@ -109,6 +123,7 @@ def main():
             elif key == ord('r'):
                 # Reset data
                 tracker.clear_history()
+                processor.reset()
                 frame_count = 0
                 print("Tracking data reset")
             elif key == ord(' '):
