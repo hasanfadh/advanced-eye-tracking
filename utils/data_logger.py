@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import json
 import os
+import csv
+from window_processor import WindowProcessor
 from datetime import datetime
 
 class DataLogger:
@@ -12,6 +14,9 @@ class DataLogger:
     def __init__(self, output_dir='data'):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+        self._window_csv_path = None
+        self._window_csv_initialized = False
+        self._window_csv_fieldnames = None
     
     def export_to_csv(self, data_history, filename=None):
         """Export tracking data to CSV"""
@@ -38,6 +43,106 @@ class DataLogger:
             json.dump(data_history, f, indent=2, default=self.convert_numpy)
         print(f"Data exported to: {filepath}")
         return filepath
+    
+    def start_window_log(self, filename=None):
+        """
+        Inisialisasi file CSV untuk logging window features.
+        Panggil sekali di awal sesi, sebelum loop tracking dimulai.
+    
+        Args:
+            filename: opsional, default: window_features_TIMESTAMP.csv
+    
+        Returns:
+            str: path file CSV yang akan diisi
+        """
+        if not filename:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"window_features_{timestamp}.csv"
+    
+        self._window_csv_path = os.path.join(self.output_dir, filename)
+        self._window_csv_initialized = False  # header belum ditulis
+        print(f"Window log initialized: {self._window_csv_path}")
+        return self._window_csv_path
+    
+    def log_window_features(self, features: dict, window_num: int, task_label: str = None):
+        """
+        Tulis satu baris window features ke CSV.
+        Panggil setiap kali processor.update() mengembalikan features.
+    
+        Header CSV dibuat otomatis dari baris pertama.
+        Untuk semua baris berikutnya, kolom yang tidak ada diisi ''.
+    
+        Args:
+            features   : dict dari WindowProcessor.update()
+            window_num : nomor window (integer, mulai dari 1)
+            task_label : opsional — label task ('reading', 'nback', 'pvt', None)
+                        Berguna untuk Phase 2 data collection
+        """
+        if self._window_csv_path is None:
+            # Auto-init jika start_window_log() belum dipanggil
+            self.start_window_log()
+    
+        # Flatten nested features ke single-level dict
+        flat = WindowProcessor.flatten(features)
+    
+        # Tambahkan kolom metadata
+        row = {
+            'timestamp':  datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],
+            'window_num': window_num,
+            'task_label': task_label if task_label else 'free',
+        }
+        row.update(flat)
+    
+        with open(self._window_csv_path, 'a', newline='', encoding='utf-8') as f:
+            if not self._window_csv_initialized:
+                # Baris pertama, simpan fieldnames sebagai referensi
+                self._window_csv_fieldnames = list(row.keys())
+                writer = csv.DictWriter(
+                    f, 
+                    fieldnames=self._window_csv_fieldnames,
+                    extrasaction='ignore',
+                    restval='',
+                )
+                writer.writeheader()
+                writer.writerow(row)
+                self._window_csv_initialized = True
+            else:
+                # Baris berikutnya, pastikan sesuai fieldnames
+                writer = csv.DictWriter(
+                    f, 
+                    fieldnames=self._window_csv_fieldnames,
+                    extrasaction='ignore', # jika ada kolom baru yang tidak ada di header, abaikan
+                    restval='',
+                )
+                writer.writerow(row)
+
+    def finalize_window_log(self):
+        """
+        Tutup window log di akhir sesi dan tampilkan ringkasan.
+        Panggil di finally block main.py, sebelum cleanup lainnya.
+    
+        Returns:
+            str: path file CSV, atau None jika tidak ada data
+        """
+        if not self._window_csv_path:
+            return None
+    
+        if not os.path.exists(self._window_csv_path):
+            return None
+    
+        # Hitung jumlah baris (windows) yang tersimpan
+        with open(self._window_csv_path, 'r', encoding='utf-8') as f:
+            n_rows = sum(1 for _ in f) - 1  # kurangi header
+    
+        print(f"Window features saved: {self._window_csv_path}")
+        print(f"  Total windows logged : {n_rows}")
+        print(f"  Estimated duration   : ~{n_rows} seconds")
+    
+        # Reset state
+        self._window_csv_path = None
+        self._window_csv_initialized = False
+    
+        return self._window_csv_path
     
     def generate_summary_report(self, data_history):
         """Generate summary statistics"""

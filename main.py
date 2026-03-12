@@ -41,6 +41,8 @@ def main():
     # Initialize components
     tracker = EyeTracker()
     logger = DataLogger()
+    logger.start_window_log()
+    window_counter = 0
     visualizer = EyeTrackingVisualizer()
     processor = WindowProcessor(
         window_sec=3.0,
@@ -83,6 +85,7 @@ def main():
                     if features:
                         window_counter += 1
                         print_features(features, window_num=window_counter)
+                        logger.log_window_features(features, window_num=window_counter)
                 
                 # Add status text
                 status = "PAUSED" if is_paused else "TRACKING"
@@ -148,6 +151,7 @@ def main():
         cv2.destroyAllWindows()
         
         # Save data if any was collected
+        logger.finalize_window_log()
         history = tracker.get_history()
         if len(history) > 0:
             print(f"\nSaving {len(history)} frames of tracking data...")

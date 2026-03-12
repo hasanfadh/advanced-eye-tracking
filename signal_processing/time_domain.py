@@ -291,7 +291,42 @@ class TimeDomainAnalyzer:
                 'peak_velocity': float(peak_velocity)
             })
         
+        saccades = self._flag_saccade_artifacts(saccades)
         return saccades
+    
+    def _flag_saccade_artifacts(
+            self,
+            saccades: list,
+            max_velocity: float = 700.0,
+            max_amplitude: float = 50.0,
+    ) -> list:
+        """
+        Flag saccades that exceed physiological limits as artifacts
+        
+        Args:
+            saccades: List of detected saccades
+            max_velocity: Maximum plausible saccade velocity in degrees/second. Default 700°/s is a common upper limit for human saccades.
+            max_amplitude: Maximum plausible saccade amplitude in degrees. Default 50° is a common upper limit for human saccades.
+            
+        Returns:
+            list: List of saccades with artifact flag
+        """
+        flagged = []
+        for s in saccades:
+            reasons = []
+
+            if s.get('peak_velocity', 0) > max_velocity:
+                reasons.append(f"velocity={s['peak_velocity']:.1f}>{max_velocity}°/s")
+            
+            if s.get('amplitude', 0) > max_amplitude:
+                reasons.append(f"amplitude={s['amplitude']:.1f}>{max_amplitude}°")
+
+            s['is_artifact'] = len(reasons) > 0
+            s['artifact_reasons'] = "; ".join(reasons) if reasons else None
+            
+            flagged.append(s)
+        
+        return flagged
     
     def analyze_temporal_pattern(self, signal_array, sampling_rate=30):
         """

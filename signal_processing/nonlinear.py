@@ -470,9 +470,17 @@ class NonlinearAnalyzer:
         
         return float(dfa_exp)
     
-    def recurrence_quantification(self, signal_data, threshold=0.1, min_line_length=2, max_length=500):
+    def recurrence_quantification(
+            self, 
+            signal_data, 
+            threshold=0.1, 
+            min_line_length=2, 
+            max_length=500,
+            theiler_window=1,
+        ):
         """
         OPTIMIZED: RQA with length limiting
+        FIXED: RQA with Theiler correction
         """
         signal_array = np.array(signal_data)
         signal_array = signal_array[~np.isnan(signal_array)]
@@ -495,37 +503,61 @@ class NonlinearAnalyzer:
         threshold_val = threshold * np.max(distances)
         R = distances < threshold_val
         
+        # Theiler correction: exclude points within theiler_window
+        # Set diagonal utama dan W diagonal sekitar ke False
+        # sebelum menghitung RQA measures
+        R_corrected = R.copy()
+        for w in range(-theiler_window, theiler_window + 1):
+            idx = np.arange(max(0, w), min(N, N + w))
+            jdx = idx + w
+            valid = (jdx >= 0) & (jdx < N)
+            R_corrected[idx[valid], jdx[valid]] = False
+
         # RQA measures
         measures = {}
         
-        # Recurrence Rate (RR)
-        measures['recurrence_rate'] = float(np.sum(R) / (N * N))
+        # Recurrence Rate (RR); gunakan R_corrected (exclude self-recurrence)
+        n_recurrent = np.sum(R_corrected)
+        n_total = N * (N - 1) - 2 * theiler_window * (N - theiler_window)  # Total possible pairs excluding Theiler window
+        # n_total = jumlah elemen di luar theiler window
+        # Fallback ke simple calculation jika n_total <= 0
+        if n_total <= 0:
+            n_total = N * N
+        measures['recurrence_rate'] = float(n_recurrent / n_total)
         
         # Determinism (DET) - ratio of recurrent points in diagonal lines
         diag_lines = []
         for offset in range(-N+1, N):
-            diag = np.diagonal(R, offset=offset)
-            if len(diag) > 0:
-                # Find line lengths (vectorized)
-                # Convert boolean to int and find consecutive ones
-                diag_int = diag.astype(int)
-                changes = np.diff(np.concatenate(([0], diag_int, [0])))
-                starts = np.where(changes == 1)[0]
-                ends = np.where(changes == -1)[0]
-                lengths = ends - starts
-                
-                # Filter by minimum length
-                valid_lengths = lengths[lengths >= min_line_length]
-                diag_lines.extend(valid_lengths)
+            # Skip diagonals within theiler window
+            if abs(offset) <= theiler_window:
+                continue
+
+            diag = np.diagonal(R_corrected, offset=offset)
+            if len(diag) == 0:
+                continue
+
+            # Cari consecutive True runs (panjang diagonal line)
+            diag_int = diag.astype(int)
+            changes = np.diff(np.concatenate(([0], diag_int, [0])))
+            starts = np.where(changes == 1)[0]
+            ends = np.where(changes == -1)[0]
+            lengths = ends - starts
+            
+            # Filter by minimum length
+            valid_lengths = lengths[lengths >= min_line_length]
+            diag_lines.extend(valid_lengths.tolist())
         
         if len(diag_lines) > 0:
-            measures['determinism'] = float(np.sum(diag_lines) / np.sum(R))
+            total_recurrent_in_lines = np.sum(diag_lines)
+            measures['determinism'] = float(total_recurrent_in_lines / max(n_recurrent, 1))
             measures['avg_diagonal_length'] = float(np.mean(diag_lines))
             measures['max_diagonal_length'] = float(np.max(diag_lines))
+            measures['num_diagonal_lines'] = len(diag_lines)
         else:
             measures['determinism'] = 0.0
             measures['avg_diagonal_length'] = 0.0
             measures['max_diagonal_length'] = 0.0
+            measures['num_diagonal_lines'] = 0
         
         return measures
     

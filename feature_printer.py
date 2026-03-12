@@ -115,6 +115,9 @@ def _print_time(t: dict | None):
 
 
 def _print_fixsacc(features: dict):
+    """
+    Updated - menampilkan artifact flag pada saccade detail
+    """
     # Fixations
     fix_count    = features.get('fixation_count')
     fix_mean_dur = features.get('fixation_mean_dur_ms')
@@ -127,6 +130,14 @@ def _print_fixsacc(features: dict):
     _val("saccade_count",         sacc_count,    "count")
     _val("saccade_mean_amplitude",sacc_mean_amp, "deg")
 
+    # Artifact flags
+    saccades = features.get('saccades', [])
+    if saccades:
+        artifact_count = sum(1 for s in saccades if s.get('is_artifact'))
+        clean_count = sacc_count - artifact_count
+        _val("saccade_clean", clean_count, "count")
+        _val("saccade_artifact", artifact_count, "count (flagged)")
+
     # Per-fixation detail (jika ada)
     fixations = features.get('fixations', [])
     if fixations:
@@ -138,14 +149,16 @@ def _print_fixsacc(features: dict):
             )
 
     # Per-saccade detail (jika ada)
-    saccades = features.get('saccades', [])
     if saccades:
         print(f"\n     Saccade details ({len(saccades)} saccades):")
         for i, s in enumerate(saccades):
+            artifact_marker = " [ART] " if s.get('is_artifact') else ""
+            reason = f"  <-- {s['artifact_reason']}" if s.get('artifact_reason') else ""
             print(
                 f"       [{i+1}] dur={s['duration_ms']:.0f}ms  "
                 f"amp={s['amplitude']:.2f}deg  "
                 f"peak_vel={s['peak_velocity']:.1f}deg/s"
+                f"{artifact_marker}{reason}"
             )
 
 

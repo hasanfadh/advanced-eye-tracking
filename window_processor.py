@@ -44,7 +44,7 @@ class WindowProcessor:
         window_sec: float = 3.0,
         step_sec: float = 1.0,
         sampling_rate: int = 30,
-        min_fill_ratio: float = 0.5,
+        min_fill_ratio: float = 0.6,
     ):
         """
         Args:
