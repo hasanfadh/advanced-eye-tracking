@@ -92,10 +92,6 @@ This system is designed for research in:
 
 ## Academic Context
 
-### Research Background
-
-This system was developed as part of research preparation for the **NKUST (National Kaohsiung University of Science and Technology) Research Internship 2026** program under Prof. Kang-Ming Chang, Department of Computer and Communication Engineering.
-
 **Related Research:**
 - Chen, Z.-L., & Chang, K.-M. (2025). *Exploring the Correlation Between Gaze Patterns and Facial Geometric Parameters*. Symmetry, 17(4), 528. [DOI: 10.3390/sym17040528](https://doi.org/10.3390/sym17040528)
 
