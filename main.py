@@ -10,6 +10,8 @@ from utils.data_logger import DataLogger
 from utils.visualizer import EyeTrackingVisualizer
 from window_processor import WindowProcessor
 from feature_printer import print_features
+from attention_classifier import AttentionClassifier
+from attention_display import AttentionDisplay
 
 def main():
     """
@@ -49,6 +51,10 @@ def main():
         step_sec=1.0,
         sampling_rate=30,
     )
+    classifier = AttentionClassifier()
+    att_display = AttentionDisplay()
+    last_attention_result = None
+    last_features = {}
     window_counter = 0
     
     print("\nControls:")
@@ -86,6 +92,12 @@ def main():
                         window_counter += 1
                         print_features(features, window_num=window_counter)
                         logger.log_window_features(features, window_num=window_counter)
+                        # Attention classification
+                        last_attention_result = classifier.classify(features)
+                        last_features = features
+                        # Print state to terminal (optional)
+                        r = last_attention_result
+                        print(f"  [{r.emoji} {r.state}] confidence={r.confidence:.0%}  score={r.score:+.1f}")
                 
                 # Add status text
                 status = "PAUSED" if is_paused else "TRACKING"
@@ -98,6 +110,20 @@ def main():
                            (processed_frame.shape[1] - 150, 60),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
                 
+                # Draw attention overlay
+                if last_attention_result is not None:
+                    att_display.render(
+                        frame,
+                        last_attention_result,
+                        last_features,
+                        buffer_fill=processor.buffer_fill_ratio,
+                    )
+                elif processor.buffer_fill_ratio < 1.0:
+                    # Show buffering progress before first window
+                    _fill = processor.buffer_fill_ratio
+                    cv2.putText(frame, f"Buffering... {_fill:.0%}",
+                                (15, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 180, 220), 1, cv2.LINE_AA)
+        
                 # 4. Display
                 cv2.imshow('Eye Tracking System - Press Q to quit', processed_frame)
             else:
@@ -127,6 +153,7 @@ def main():
                 # Reset data
                 tracker.clear_history()
                 processor.reset()
+                classifier.reset()
                 frame_count = 0
                 print("Tracking data reset")
             elif key == ord(' '):
