@@ -196,10 +196,10 @@ class AttentionDisplay:
                 continue
 
             # Value text
-            if isinstance(val, float):
-                txt = f"{val:.1f}{unit}"
-            else:
-                txt = f"{val}{unit}"
+            try:
+                txt = f"{float(val):.1f}{unit}"
+            except (TypeError, ValueError):
+                txt = "--"
 
             # Color: gradient based on normalized value
             norm = max(0.0, min(1.0, (val - vmin) / (vmax - vmin + 1e-9)))

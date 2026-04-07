@@ -93,8 +93,9 @@ def main():
                         print_features(features, window_num=window_counter)
                         logger.log_window_features(features, window_num=window_counter)
                         # Attention classification
-                        last_attention_result = classifier.classify(features)
-                        last_features = features
+                        flat_features = WindowProcessor.flatten(features)
+                        last_attention_result = classifier.classify(flat_features)
+                        last_features = flat_features
                         # Print state to terminal (optional)
                         r = last_attention_result
                         print(f"  [{r.emoji} {r.state}] confidence={r.confidence:.0%}  score={r.score:+.1f}")
@@ -113,7 +114,7 @@ def main():
                 # Draw attention overlay
                 if last_attention_result is not None:
                     att_display.render(
-                        frame,
+                        processed_frame,
                         last_attention_result,
                         last_features,
                         buffer_fill=processor.buffer_fill_ratio,
@@ -121,7 +122,7 @@ def main():
                 elif processor.buffer_fill_ratio < 1.0:
                     # Show buffering progress before first window
                     _fill = processor.buffer_fill_ratio
-                    cv2.putText(frame, f"Buffering... {_fill:.0%}",
+                    cv2.putText(processed_frame, f"Buffering... {_fill:.0%}",
                                 (15, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 180, 220), 1, cv2.LINE_AA)
         
                 # 4. Display
