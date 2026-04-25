@@ -2,6 +2,7 @@
 attention_display.py
 =====================
 Renders attention state overlay onto the OpenCV frame.
+Place at: EYE-TRACKER/attention_display.py
 
 Usage:
     from attention_display import AttentionDisplay
@@ -147,11 +148,11 @@ class AttentionDisplay:
                         (bx + bar_total_w + 5, y + 7),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, dc, 1, cv2.LINE_AA)
 
-            # Domain state indicator
-            ds_sym = "↑" if ds.score > 0.25 else "↓" if ds.score < -0.25 else "~"
+            # Domain state indicator — ASCII only (OpenCV Hershey no Unicode)
+            ds_sym = "F" if ds.score > 0.25 else "D" if ds.score < -0.25 else "P"
             cv2.putText(frame, ds_sym,
                         (bx + bar_total_w + 30, y + 7),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, dc, 1, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, dc, 1, cv2.LINE_AA)
 
         # Top reason (1 line only, space is tight)
         if result.reasons:
@@ -172,7 +173,7 @@ class AttentionDisplay:
         metrics = [
             ("BLINK",    features.get("blink_rate_per_min"),   "/min",  0,   30),
             ("FIX DUR",  features.get("fixation_mean_dur_ms"), "ms",    0,   500),
-            ("SACC AMP", features.get("saccade_mean_amp_deg"), "°",     0,   15),
+            ("SACC AMP", features.get("saccade_mean_amp_deg"), "",     0,   15),
             ("EAR",      features.get("ear_mean"),             "",      0.1, 0.5),
             ("ENTROPY",  features.get("nonlinear_h_sample_entropy"), "", 0,  2.0),
         ]
@@ -195,9 +196,10 @@ class AttentionDisplay:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (80, 80, 85), 1, cv2.LINE_AA)
                 continue
 
-            # Value text
+            # Value text — cast to float first to handle numpy.float64
             try:
                 txt = f"{float(val):.1f}{unit}"
+                val = float(val)
             except (TypeError, ValueError):
                 txt = "--"
 

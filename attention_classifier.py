@@ -2,7 +2,6 @@
 attention_classifier.py  (v2 — Multi-Domain Weighted Voting)
 =============================================================
 
-
 Architecture:
     ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐
     │  TIME DOMAIN    │  │ FREQUENCY DOMAIN │  │   NONLINEAR     │
@@ -149,7 +148,7 @@ class AttentionResult:
     def domain_summary(self) -> str:
         parts = []
         for name, ds in self.domain_scores.items():
-            sym = "↑" if ds.score > 0.25 else "↓" if ds.score < -0.25 else "~"
+            sym = "F" if ds.score > 0.25 else "D" if ds.score < -0.25 else "P"
             parts.append(f"{name[:4].upper()}={ds.score:+.2f}{sym}")
         return "  ".join(parts)
 
@@ -169,9 +168,9 @@ class TimeDomainScorer:
         if blink is not None:
             n += 1
             if blink <= t.blink_rate_focused_max:
-                raw += 2.0; reasons.append(f"Blink {blink:.0f}/min ✓")
+                raw += 2.0; reasons.append(f"Blink {blink:.0f}/min +")
             elif blink >= t.blink_rate_distracted_min:
-                raw -= 2.0; reasons.append(f"Blink {blink:.0f}/min ✗")
+                raw -= 2.0; reasons.append(f"Blink {blink:.0f}/min -")
             else:
                 reasons.append(f"Blink {blink:.0f}/min (normal)")
 
@@ -179,9 +178,9 @@ class TimeDomainScorer:
         if fix_dur is not None and fix_dur > 0:
             n += 1
             if fix_dur >= t.fixation_dur_focused_min:
-                raw += 2.5; reasons.append(f"Fix dur {fix_dur:.0f}ms ✓")
+                raw += 2.5; reasons.append(f"Fix dur {fix_dur:.0f}ms +")
             elif fix_dur <= t.fixation_dur_distracted_max:
-                raw -= 2.5; reasons.append(f"Fix dur {fix_dur:.0f}ms ✗")
+                raw -= 2.5; reasons.append(f"Fix dur {fix_dur:.0f}ms -")
 
         fix_cnt = g("fixation_count")
         if fix_cnt is not None:
@@ -189,15 +188,15 @@ class TimeDomainScorer:
             if fix_cnt <= t.fixation_count_focused_max:
                 raw += 1.0
             elif fix_cnt >= t.fixation_count_distracted_min:
-                raw -= 1.0; reasons.append(f"Fix cnt {fix_cnt:.0f} ✗")
+                raw -= 1.0; reasons.append(f"Fix cnt {fix_cnt:.0f} -")
 
         sacc_amp = g("saccade_mean_amp_deg")
         if sacc_amp is not None and sacc_amp > 0:
             n += 1
             if sacc_amp <= t.saccade_amp_focused_max:
-                raw += 1.5; reasons.append(f"Sacc {sacc_amp:.1f}° ✓")
+                raw += 1.5; reasons.append(f"Sacc {sacc_amp:.1f}deg +")
             elif sacc_amp >= t.saccade_amp_distracted_min:
-                raw -= 1.5; reasons.append(f"Sacc {sacc_amp:.1f}° ✗")
+                raw -= 1.5; reasons.append(f"Sacc {sacc_amp:.1f}deg -")
 
         sacc_cnt = g("saccade_count")
         if sacc_cnt is not None:
@@ -211,7 +210,7 @@ class TimeDomainScorer:
         if ear is not None:
             n += 1
             if ear < t.ear_closed_threshold:
-                raw -= 1.5; reasons.append(f"EAR {ear:.2f} ✗ (droopy)")
+                raw -= 1.5; reasons.append(f"EAR {ear:.2f} - (droopy)")
             elif ear > t.ear_open_threshold:
                 raw += 0.5
 
@@ -243,15 +242,15 @@ class FrequencyDomainScorer:
         if vl is not None:
             n += 1
             if vl >= t.very_low_focused_min:
-                raw += 2.0; reasons.append(f"VLow {vl:.0f}% ✓")
+                raw += 2.0; reasons.append(f"VLow {vl:.0f}% +")
             elif vl <= t.very_low_distracted_max:
-                raw -= 1.5; reasons.append(f"VLow {vl:.0f}% ✗")
+                raw -= 1.5; reasons.append(f"VLow {vl:.0f}% -")
 
         low = g("frequency_bands_low_relative_power")
         if low is not None:
             n += 1
             if low >= t.low_distracted_min:
-                raw -= 2.0; reasons.append(f"Low band {low:.0f}% ✗")
+                raw -= 2.0; reasons.append(f"Low band {low:.0f}% -")
             elif low <= t.low_focused_max:
                 raw += 1.5
 
@@ -259,15 +258,15 @@ class FrequencyDomainScorer:
         if high is not None:
             n += 1
             if high >= t.high_distracted_min:
-                raw -= 1.5; reasons.append(f"High band {high:.0f}% ✗")
+                raw -= 1.5; reasons.append(f"High band {high:.0f}% -")
 
         se = g("spectral_entropy")
         if se is not None:
             n += 1
             if se <= t.spectral_entropy_focused_max:
-                raw += 1.5; reasons.append(f"SpEnt {se:.2f} ✓")
+                raw += 1.5; reasons.append(f"SpEnt {se:.2f} +")
             elif se >= t.spectral_entropy_distracted_min:
-                raw -= 1.5; reasons.append(f"SpEnt {se:.2f} ✗")
+                raw -= 1.5; reasons.append(f"SpEnt {se:.2f} -")
 
         sc = g("spectral_centroid")
         if sc is not None:
@@ -275,7 +274,7 @@ class FrequencyDomainScorer:
             if sc <= t.spectral_centroid_focused_max:
                 raw += 1.0
             elif sc >= t.spectral_centroid_distracted_min:
-                raw -= 1.0; reasons.append(f"Centroid {sc:.1f}Hz ✗")
+                raw -= 1.0; reasons.append(f"Centroid {sc:.1f}Hz -")
 
         df = g("dominant_frequency")
         if df is not None:
@@ -305,9 +304,9 @@ class NonlinearDomainScorer:
         if se is not None:
             n += 1
             if se <= t.sample_entropy_focused_max:
-                raw += 2.0; reasons.append(f"SampEn {se:.2f} ✓")
+                raw += 2.0; reasons.append(f"SampEn {se:.2f} +")
             elif se >= t.sample_entropy_distracted_min:
-                raw -= 2.0; reasons.append(f"SampEn {se:.2f} ✗")
+                raw -= 2.0; reasons.append(f"SampEn {se:.2f} -")
 
         ae = g("approximate_entropy")
         if ae is not None:
@@ -315,21 +314,21 @@ class NonlinearDomainScorer:
             if ae <= t.approx_entropy_focused_max:
                 raw += 1.5
             elif ae >= t.approx_entropy_distracted_min:
-                raw -= 1.5; reasons.append(f"ApproxEn {ae:.2f} ✗")
+                raw -= 1.5; reasons.append(f"ApproxEn {ae:.2f} -")
 
         fd = g("fractal_dimension")
         if fd is not None:
             n += 1
             if fd <= t.fractal_dim_focused_max:
-                raw += 1.5; reasons.append(f"FracDim {fd:.2f} ✓")
+                raw += 1.5; reasons.append(f"FracDim {fd:.2f} +")
             elif fd >= t.fractal_dim_distracted_min:
-                raw -= 1.5; reasons.append(f"FracDim {fd:.2f} ✗")
+                raw -= 1.5; reasons.append(f"FracDim {fd:.2f} -")
 
         dfa = g("dfa_exponent")
         if dfa is not None:
             n += 1
             if dfa >= t.dfa_focused_min:
-                raw += 1.0; reasons.append(f"DFA {dfa:.2f} ✓")
+                raw += 1.0; reasons.append(f"DFA {dfa:.2f} +")
             elif dfa <= t.dfa_distracted_max:
                 raw -= 1.0
 
@@ -339,23 +338,23 @@ class NonlinearDomainScorer:
             if lya <= t.lyapunov_focused_max:
                 raw += 1.0
             elif lya >= t.lyapunov_distracted_min:
-                raw -= 1.0; reasons.append(f"Lyapunov {lya:.2f} ✗")
+                raw -= 1.0; reasons.append(f"Lyapunov {lya:.2f} -")
 
         rr = g("rqa_recurrence_rate")
         if rr is not None:
             n += 1
             if rr >= t.rqa_rr_focused_min:
-                raw += 1.5; reasons.append(f"RQA-RR {rr:.2f} ✓")
+                raw += 1.5; reasons.append(f"RQA-RR {rr:.2f} +")
             elif rr <= t.rqa_rr_distracted_max:
-                raw -= 1.5; reasons.append(f"RQA-RR {rr:.2f} ✗")
+                raw -= 1.5; reasons.append(f"RQA-RR {rr:.2f} -")
 
         det = g("rqa_determinism")
         if det is not None:
             n += 1
             if det >= t.rqa_det_focused_min:
-                raw += 2.0; reasons.append(f"RQA-Det {det:.2f} ✓")
+                raw += 2.0; reasons.append(f"RQA-Det {det:.2f} +")
             elif det <= t.rqa_det_distracted_max:
-                raw -= 2.0; reasons.append(f"RQA-Det {det:.2f} ✗")
+                raw -= 2.0; reasons.append(f"RQA-Det {det:.2f} -")
 
         adl = g("rqa_avg_diagonal_length")
         if adl is not None:
@@ -538,7 +537,7 @@ if __name__ == "__main__":
             result = classifier.classify(feat)
 
         ds = result.domain_scores
-        match = "✓" if result.state == expected else f"✗ (got {result.state})"
+        match = "+" if result.state == expected else f"- (got {result.state})"
         if result.state != expected:
             all_correct = False
 
@@ -555,4 +554,4 @@ if __name__ == "__main__":
         for r in result.reasons[:4]:
             print(f"    {r}")
 
-    print(f"\n{'All tests PASSED ✓' if all_correct else 'Some tests FAILED ✗'}")
+    print(f"\n{'All tests PASSED +' if all_correct else 'Some tests FAILED -'}")

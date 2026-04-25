@@ -1,0 +1,75 @@
+## Debug History: Vertical Gaze Tracking
+
+---
+
+### Problem 1: V axis terbalik
+**Gejala:** Saat lihat bawah V negatif, saat lihat atas V positif — berlawanan dari yang seharusnya.
+**Solusi:** Tambah `avg_v *= -1` sebelum amplifikasi.
+**Hasil:** Terbalik lagi ke arah yang salah — flip justru memperburuk. Akhirnya dihapus dan diselesaikan lewat pendekatan lain.
+
+---
+
+### Problem 2: Range V terlalu kecil (±0.05)
+**Gejala:** Pointer hanya bergerak di pertengahan layar, tidak bisa mencapai pojok atas/bawah.
+**Diagnosis:** Range ratio aktual hanya ±0.18 (H) dan ±0.20 (V), jauh dari ±1.0 yang dibutuhkan.
+**Solusi dicoba:** Tambah `SCALE_H = 5.5`, `SCALE_V = 5.0` di `gaze_to_screen_point`.
+**Hasil:** Membaik tapi masih tidak simetris — atas dan bawah tidak seimbang.
+
+---
+
+### Problem 3: Range atas/bawah tidak simetris
+**Gejala:** `v_min = -0.316` tapi `v_max = +0.161` — range bawah jauh lebih kecil dari atas.
+**Diagnosis:** `vertical_offset` dari kalibrasi awal menarik semua nilai ke atas, menekan nilai V bawah saat kalibrasi pojok.
+**Solusi dicoba 1:** Implementasi min-max calibration 4 pojok layar.
+**Hasil:** Membaik tapi v_max masih lebih kecil dari |v_min|.
+**Solusi dicoba 2:** Rekam min-max per pojok menggunakan `np.percentile(10)` dan `np.percentile(90)` untuk hindari outlier, plus padding 10% di akhir.
+**Hasil:** Range lebih representatif tapi masih ada pojok yang under-recorded.
+
+---
+
+### Problem 4: Referensi vertikal kelopak mata ikut bergerak
+**Gejala:** Pergerakan bola mata vertikal tidak terdeteksi kecuali kepala dimiringkan ekstrem. V hampir selalu konstan meski lihat atas/bawah.
+**Root cause:** `get_iris_position` menggunakan `LEFT_EYE_TOP` (386) dan `LEFT_EYE_BOTTOM` (374) sebagai referensi vertikal — landmark ini ikut bergerak saat bola mata bergerak, sehingga perubahan ratio vertikal sangat kecil.
+**Solusi dicoba 1:** Ganti referensi ke `NOSE_TIP` (landmark 1) — iris_y dikurangi nose_y, dinormalisasi face_height.
+**Hasil:** V selalu 0.000 — left_v dan right_v saling cancel karena nose_y jauh di bawah kedua iris, nilai didominasi jarak anatomis tetap bukan pergerakan bola mata.
+**Solusi dicoba 2:** Normalisasi dengan `eye_width` sebagai pembagi — `(iris_y - nose_y) / eye_width`.
+**Hasil:** Tidak ada perubahan vertikal sama sekali, pointer hanya bergerak horizontal.
+**Solusi dicoba 3:** Ganti referensi ke sudut mata (corner landmarks) yang benar-benar statis — `362`, `263` untuk left eye, `33`, `133` untuk right eye. Rata-rata Y kedua sudut sebagai `eye_center_y`, dinormalisasi `eye_width * 0.3`.
+**Hasil:** V mulai bergerak dan arah sudah benar ✅
+
+---
+
+### Problem 5: left_v dan right_v tidak konsisten
+**Gejala:** `left_v ≈ -1.86` dan `right_v ≈ -1.75` selalu, V output ≈ 0 karena offset besar.
+**Root cause:** Nose reference terlalu jauh — nilai didominasi jarak anatomis, bukan pergerakan iris.
+**Solusi:** Gunakan `left_v` saja (satu mata) untuk vertikal, rata-rata hanya untuk horizontal.
+**Hasil:** V mulai bervariasi tapi kanan atas dan kiri bawah masih V ≈ 0.
+
+---
+
+### Problem 6: Satu mata tidak representatif untuk semua arah
+**Gejala:** Saat lihat kanan, `left_v` tidak bergerak cukup — V kanan atas dan kiri bawah hampir 0.
+**Root cause:** Left eye saja tidak cukup representatif saat pandangan ke sisi kanan — otot mata kanan lebih dominan bergerak.
+**Solusi dicoba 1:** Weight statis — `avg_v = left_v * 0.7 + right_v * 0.3` saat lihat kiri, sebaliknya saat lihat kanan.
+**Hasil:** Membaik tapi transisi kaku.
+**Solusi dicoba 2:** Interpolasi linear smooth — `weight_left = np.clip(0.5 - avg_h * 1.5, 0.2, 0.8)`.
+**Hasil:** Semua 4 pojok terbaca dengan benar, range simetris ✅
+
+---
+
+### Problem 7: Perubahan posisi kepala menggeser pointer
+**Gejala:** Saat kepala maju/mundur tanpa mengubah arah pandang, pointer ikut bergerak.
+**Root cause:** Referensi hidung menggunakan pixel distance — saat kepala maju semua landmark membesar di frame, sehingga `iris_y - nose_y` berubah meski arah pandang sama.
+**Solusi:** Normalisasi dengan `eye_width` sebagai unit skala — karena `eye_width` juga ikut membesar proporsional saat kepala maju/mundur, pembagian membuat ratio invariant terhadap jarak.
+**Hasil:** Sudah tidak sensitif terhadap perubahan jarak kepala ke kamera ✅
+
+---
+
+### Status Akhir
+```
+V range:     -0.31 sampai +0.23  ✅
+H range:     -0.27 sampai +0.20  ✅
+Semua pojok: terbaca benar        ✅
+Head movement invariant:          ✅
+Noise per frame: ±0.05            acceptable untuk penelitian
+```
